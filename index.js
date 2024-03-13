@@ -3,46 +3,89 @@
 // reducer
 // store
 
-const { createStore } = require("redux");
+const { default: axios } = require("axios");
+const { createStore, applyMiddleware } = require("redux");
+const { thunk } = require("redux-thunk");
 
 // CONSTANT
-const ADD_USERS_BY_VALUE = "ADD_USERS_BY_VALUE";
+const GET_TODOS_REQUEST = "GET_TODOS_REQUEST";
+const GET_TODOS_SUCCESS = "GET_TODOS_SUCCESS";
+const GET_TODOS_FAILED = "GET_TODOS_FAILED";
+const API_URL = "https://jsonplaceholder.typicode.com/todos";
 
-// state - defining state
-const users = {
-  count: 1,
-  users: ["Showkat"],
+// state
+const initialTodosState = {
+  todos: [],
+  isLoading: false,
+  error: null,
 };
 
 // action -type, payload
-const addUsers = (user) => {
+const getTodosRequest = () => {
   return {
-    type: ADD_USERS_BY_VALUE,
-    payload: user,
+    type: GET_TODOS_REQUEST,
+  };
+};
+const getTodosSuccess = (todos) => {
+  return {
+    type: GET_TODOS_SUCCESS,
+    payload: todos,
   };
 };
 
-// reducter -state, action
-const usersReducer = (state = users, action) => {
+const getTodosFailed = (error) => {
+  return {
+    type: GET_TODOS_FAILED,
+    payload: error,
+  };
+};
+// async action creator
+const fatchDta = () => {
+  return (dispatch) => {
+    dispatch(getTodosRequest());
+    axios
+      .get(API_URL)
+      .then((res) => {
+        const todos = res.data;
+        const titles = todos.map((todo) => todo.title);
+        dispatch(getTodosSuccess(titles));
+      })
+      .catch((error) => {
+        const errorMessage = error.message;
+        dispatch(getTodosFailed());
+      });
+  };
+};
+// ruducer
+const todosReducer = (state = initialTodosState, action) => {
   switch (action.type) {
-    case ADD_USERS_BY_VALUE:
+    case GET_TODOS_REQUEST:
       return {
-        count: state.count + 1,
-        users: [...state.users, action.payload],
+        ...state,
+        isLoading: true,
+      };
+    case GET_TODOS_SUCCESS:
+      return {
+        ...state,
+        todos: action.payload,
+        isLoading: false,
       };
 
+    case GET_TODOS_FAILED:
+      return {
+        ...state,
+        isLoading: false,
+        error: action.payload,
+      };
     default:
-      state;
+      return state;
   }
 };
 
-// store - getState(), dispatch(), subscribe()
-const store = createStore(usersReducer);
-
-// subscribe()
+// store - getState(), subscribe(), dispatch()
+const store = createStore(todosReducer, applyMiddleware(thunk));
 store.subscribe(() => {
   console.log(store.getState());
 });
-// dispatch()
-store.dispatch(addUsers("Ali"));
-store.dispatch(addUsers("momo"));
+
+store.dispatch(fatchDta());
